@@ -1,0 +1,45 @@
+# SHAPEFILE_DIR: directory of shapefiles
+shapefile = SHAPEFILE_DIR + "seaice_s1_20180116t075430.shp"
+shp_id = shapefile.split("_")[-1][:-4].upper()
+tiff_files = [g for g in glob.glob(TIFF_DIR+'/*.tif')]
+# locate the corresponding Sentinel-1 image based on the ID
+# this should only return 1 match, which you can confirm
+tiff_file = [g for g in tiff_files if shp_id in g]
+tiff_file = tiff_file[0]
+ds = gdal.Open(tiff_file)
+width = ds.RasterXSize
+height = ds.RasterYSize
+gt = ds.GetGeoTransform()
+minx = gt[0]
+miny = gt[3] + width*gt[4] + height*gt[5] 
+maxx = gt[0] + width*gt[1] + height*gt[2]
+maxy = gt[3] 
+shape_data = gpd.read_file(shapefile)
+dataset = ds
+
+# 64 by 64 images
+chunksize = 64
+chunkmid = chunksize/2
+numperrow = np.int(width/chunksize)
+numpercol = np.int(height/chunksize)
+
+
+for i in range(numperrow):
+  print(i)
+  xrangemin = i*chunksize
+  xrangemax = (i+1)*chunksize
+  for j in range(numpercol):
+    l = 20000000 + i*1000 + j
+    yrangemin = j*chunksize
+    yrangemax = (j+1)*chunksize
+    r = dataset.GetRasterBand(1).ReadAsArray()[xrangemin:xrangemax, yrangemin:yrangemax]
+    g = dataset.GetRasterBand(2).ReadAsArray()[xrangemin:xrangemax, yrangemin:yrangemax]
+    b = dataset.GetRasterBand(3).ReadAsArray()[xrangemin:xrangemax, yrangemin:yrangemax]
+    rgbArray = np.zeros((chunksize,chunksize,3), 'uint8')
+    rgbArray[..., 0] = r
+    rgbArray[..., 1] = g
+    rgbArray[..., 2] = b
+    img = Image.fromarray(rgbArray)
+    strname = str(l)+'.png'
+    img.save(strname)
+    !cp strname META_DIR
