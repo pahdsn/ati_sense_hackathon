@@ -43,3 +43,65 @@ for i in range(numperrow-1):
     rgbArray[..., 2] = bc
 
     tensorlist.append(torch.tensor(rgbArray))
+
+
+
+
+# changes to other functions:
+# inside the PolarPatch class:
+# inside def __init__
+        assert split in ["train", "val", "real"]
+        #load meta here
+        
+        if split == "train":
+            meta = meta[:train_dim]
+        elif split == "real":
+            self.transform = transform
+            return
+        else:
+            meta = meta[train_dim:]          
+         
+        #everything else unchanged
+
+    def __getitem__(self, index,split="train"):
+        assert split in ["train", "val", "real"]
+
+        if split == "real":
+          x = tensorlist
+        else:
+          x = Image.open(SAMPLING_DIR + str(index) + ".png") # change this file format if needed
+        y = self.targets[index]
+        coord = self.coords[index]
+
+        if self.transform:
+        	x = self.transform(x)
+
+        return x, y, coord
+        
+        
+
+real_set = PolarPatch(
+    split = 'real',
+    transform = data_transform
+)
+
+real_loader = torch.utils.data.DataLoader(
+    test_set,
+    batch_size=5,
+    shuffle=False,
+    num_workers=2
+)
+
+
+
+
+# to run: 
+for i, data in enumerate(real_loader, 0):
+      inputs, labels, coords = data
+      inputs = inputs.to(DEVICE)
+      labels = labels.to(DEVICE)
+        # Zero the parameter gradients
+      optimizer.zero_grad()
+
+      # Forward, backward, and update parameters
+      outputs = net(inputs)
